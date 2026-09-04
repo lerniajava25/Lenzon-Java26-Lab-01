@@ -7,6 +7,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.util.Arrays;
 
 public class Main {
@@ -27,27 +29,41 @@ public class Main {
 
 
             System.out.print("Ditt val: ");
+
+            if (!scanner.hasNextLine()) {
+                System.out.println();
+                System.out.println("Ingen mer inmatning. Avslutar.");
+                break;
+            }
+
             String val = scanner.nextLine().trim().toLowerCase();
 
             switch (val) {
                 case "1" -> {
                     System.out.print("Ange elområde (SE1, SE2, SE3, SE4): ");
-                    String nyttOmrade = scanner.nextLine().trim().toUpperCase();
 
-                    String[] giltiga = {"SE1", "SE2", "SE3", "SE4"};
-                    boolean hittad = false;
-
-                    for (String omrade : giltiga) {
-                        if (omrade.equals(nyttOmrade)) {
-                            hittad = true;
-                        }
-                    }
-
-                    if (hittad) {
-                        elomrade = nyttOmrade;
-                        System.out.println("Valt område: " + elomrade);
+                    if (!scanner.hasNextLine()) {
+                        System.out.println();
+                        System.out.println("Ingen mer inmatning. Avslutar.");
+                        running = false;
                     } else {
-                        System.out.println("Ogiltigt elområde: " + nyttOmrade + ". Välj SE1-SE4.");
+                        String nyttOmrade = scanner.nextLine().trim().toUpperCase();
+
+                        String[] giltiga = {"SE1", "SE2", "SE3", "SE4"};
+                        boolean hittad = false;
+
+                        for (String omrade : giltiga) {
+                            if (omrade.equals(nyttOmrade)) {
+                                hittad = true;
+                            }
+                        }
+
+                        if (hittad) {
+                            elomrade = nyttOmrade;
+                            System.out.println("Valt område: " + elomrade);
+                        } else {
+                            System.out.println("Ogiltigt elområde: " + nyttOmrade + ". Välj SE1-SE4.");
+                        }
                     }
                 }
                 case "2" -> {
@@ -57,8 +73,13 @@ public class Main {
                         try {
                             double[] timpriser = hamtaTimpriser(elomrade);
                             visaStatistik(timpriser);
-                        } catch (IOException | InterruptedException e) {
+                        } catch (IOException e) {
                             System.out.println("Kunde inte hämta priser: " + e.getMessage());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            System.out.println("Hämtningen avbröts.");
+                        } catch (IllegalStateException e) {
+                            System.out.println("Ogiltig data från API:et: " + e.getMessage());
                         }
                     }
                 }
@@ -70,8 +91,13 @@ public class Main {
                         try {
                             double[] timpriser = hamtaTimpriser(elomrade);
                             visaSorterat(timpriser);
-                        } catch (IOException | InterruptedException e) {
+                        } catch (IOException e) {
                             System.out.println("Kunde inte hämta priser: " + e.getMessage());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            System.out.println("Hämtningen avbröts.");
+                        } catch (IllegalStateException e) {
+                            System.out.println("Ogiltig data från API:et: " + e.getMessage());
                         }
                     }
                 }
@@ -82,8 +108,13 @@ public class Main {
                         try {
                             double[] timpriser = hamtaTimpriser(elomrade);
                             visaBastaLaddningstid(timpriser);
-                        } catch (IOException | InterruptedException e) {
+                        } catch (IOException e) {
                             System.out.println("Kunde inte hämta priser: " + e.getMessage());
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            System.out.println("Hämtningen avbröts.");
+                        } catch (IllegalStateException e) {
+                            System.out.println("Ogiltig data från API:et: " + e.getMessage());
                         }
                     }
                 }
@@ -97,12 +128,15 @@ public class Main {
         }
     }
     private static String hamtaJson(String elomrade) throws IOException, InterruptedException {
-        String url = "https://www.elprisetjustnu.se/api/v1/prices/2026/09-04_" + elomrade + ".json";
+        LocalDate idag = LocalDate.now();
+        String datum = "%d/%02d-%02d".formatted(idag.getYear(), idag.getMonthValue(), idag.getDayOfMonth());
+        String url = "https://www.elprisetjustnu.se/api/v1/prices/" + datum + "_" + elomrade + ".json";
 
         HttpClient client = HttpClient.newHttpClient();
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
 
@@ -115,6 +149,11 @@ public class Main {
     }
 
     private static double[] tillTimpriser(Elpris[] priser) {
+        if (priser == null || priser.length < 24) {
+            int antal = (priser == null) ? 0 : priser.length;
+            throw new IllegalStateException("för få prisposter (" + antal + ", minst 24 krävs)");
+        }
+
         int perTimme = priser.length / 24;
         double[] timpriser = new double[24];
 
@@ -206,6 +245,3 @@ public class Main {
     }
 
 }
-
-
-
