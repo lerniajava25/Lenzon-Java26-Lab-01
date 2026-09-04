@@ -1,4 +1,6 @@
 package se.lernia.elpris;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Scanner;
 import java.io.IOException;
 import java.net.URI;
@@ -53,7 +55,15 @@ public class Main {
                     } else {
                         try {
                             String json = hamtaJson(elomrade);
-                            System.out.println("Hämtade " + json.length() + " tecken");
+
+                            ObjectMapper mapper = new ObjectMapper();
+                            Elpris[] priser = mapper.readValue(json, Elpris[].class);
+
+                            double[] timpriser = tillTimpriser(priser);
+
+                            for (int t = 0; t < timpriser.length; t++) {
+                                System.out.println("%02d:00  %6.2f öre/kWh".formatted(t, timpriser[t] * 100));
+                            }
                         } catch (IOException | InterruptedException e) {
                             System.out.println("Kunde inte hämta priser: " + e.getMessage());
                         }
@@ -86,6 +96,23 @@ public class Main {
         }
 
         return response.body();
+    }
+
+    private static double[] tillTimpriser(Elpris[] priser) {
+        int perTimme = priser.length / 24;
+        double[] timpriser = new double[24];
+
+        for (int timme = 0; timme < 24; timme++) {
+            double summa = 0;
+
+            for (int i = 0; i < perTimme; i++) {
+                summa = summa + priser[timme * perTimme + i].sekPerKwh();
+            }
+
+            timpriser[timme] = summa / perTimme;
+        }
+
+        return timpriser;
     }
 
 }
