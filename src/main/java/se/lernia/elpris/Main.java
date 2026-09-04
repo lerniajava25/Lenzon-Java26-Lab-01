@@ -54,21 +54,14 @@ public class Main {
                         System.out.println("Välj elområde först (menyval 1).");
                     } else {
                         try {
-                            String json = hamtaJson(elomrade);
-
-                            ObjectMapper mapper = new ObjectMapper();
-                            Elpris[] priser = mapper.readValue(json, Elpris[].class);
-
-                            double[] timpriser = tillTimpriser(priser);
-
-                            for (int t = 0; t < timpriser.length; t++) {
-                                System.out.println("%02d:00  %6.2f öre/kWh".formatted(t, timpriser[t] * 100));
-                            }
+                            double[] timpriser = hamtaTimpriser(elomrade);
+                            visaStatistik(timpriser);
                         } catch (IOException | InterruptedException e) {
                             System.out.println("Kunde inte hämta priser: " + e.getMessage());
                         }
                     }
                 }
+
                 case "3" -> System.out.println("Sortera priser: ");
                 case "4" -> System.out.println(" Bästa laddningstid:");
 
@@ -113,6 +106,39 @@ public class Main {
         }
 
         return timpriser;
+    }
+
+    private static double[] hamtaTimpriser(String elomrade) throws IOException, InterruptedException {
+        String json = hamtaJson(elomrade);
+        ObjectMapper mapper = new ObjectMapper();
+        Elpris[] priser = mapper.readValue(json, Elpris[].class);
+        return tillTimpriser(priser);
+    }
+
+    private static void visaStatistik(double[] timpriser) {
+        double lagsta = timpriser[0];
+        double hogsta = timpriser[0];
+        double summa = 0;
+        int billigastTimme = 0;
+        int dyrastTimme = 0;
+
+        for (int t = 0; t < timpriser.length; t++) {
+            if (timpriser[t] < lagsta) {
+                lagsta = timpriser[t];
+                billigastTimme = t;
+            }
+            if (timpriser[t] > hogsta) {
+                hogsta = timpriser[t];
+                dyrastTimme = t;
+            }
+            summa = summa + timpriser[t];
+        }
+
+        double medel = summa / timpriser.length;
+
+        System.out.println("Lägsta pris:  %6.2f öre/kWh  kl %02d:00".formatted(lagsta * 100, billigastTimme));
+        System.out.println("Högsta pris:  %6.2f öre/kWh  kl %02d:00".formatted(hogsta * 100, dyrastTimme));
+        System.out.println("Medelpris:    %6.2f öre/kWh".formatted(medel * 100));
     }
 
 }
