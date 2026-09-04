@@ -1,6 +1,8 @@
 package se.lernia.elpris;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Scanner;
 import java.io.IOException;
 import java.net.URI;
@@ -129,6 +131,14 @@ public class Main {
     }
     private static String hamtaJson(String elomrade) throws IOException, InterruptedException {
         LocalDate idag = LocalDate.now();
+
+        Path cacheFil = Path.of("cache", idag + "_" + elomrade + ".json");   // ← ditt svar 1 ✅
+
+        if (Files.exists(cacheFil)) {                                        // ← rättat svar 2
+            System.out.println("(läser från cache)");
+            return Files.readString(cacheFil);                               // ← rättat svar 3: HÄR, först
+        }
+
         String datum = "%d/%02d-%02d".formatted(idag.getYear(), idag.getMonthValue(), idag.getDayOfMonth());
         String url = "https://www.elprisetjustnu.se/api/v1/prices/" + datum + "_" + elomrade + ".json";
 
@@ -141,9 +151,14 @@ public class Main {
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
         if (response.statusCode() != 200) {
             throw new IOException("Servern svarade " + response.statusCode() + " för område " + elomrade);
         }
+
+        Files.createDirectories(cacheFil.getParent());
+        Files.writeString(cacheFil, response.body());                        // ← ditt svar 4 ✅
+        System.out.println("(hämtar från API)");
 
         return response.body();
     }
