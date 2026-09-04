@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 
 public class Main {
     public static void main(String[] args){
@@ -62,8 +63,30 @@ public class Main {
                     }
                 }
 
-                case "3" -> System.out.println("Sortera priser: ");
-                case "4" -> System.out.println(" Bästa laddningstid:");
+                case "3" -> {
+                    if (elomrade.isEmpty()) {
+                        System.out.println("Välj elområde först (menyval 1).");
+                    } else {
+                        try {
+                            double[] timpriser = hamtaTimpriser(elomrade);
+                            visaSorterat(timpriser);
+                        } catch (IOException | InterruptedException e) {
+                            System.out.println("Kunde inte hämta priser: " + e.getMessage());
+                        }
+                    }
+                }
+                case "4" -> {
+                    if (elomrade.isEmpty()) {
+                        System.out.println("Välj elområde först (menyval 1).");
+                    } else {
+                        try {
+                            double[] timpriser = hamtaTimpriser(elomrade);
+                            visaBastaLaddningstid(timpriser);
+                        } catch (IOException | InterruptedException e) {
+                            System.out.println("Kunde inte hämta priser: " + e.getMessage());
+                        }
+                    }
+                }
 
                 case "e" -> {
                     System.out.println("Systemet avslutat, på återseende!");
@@ -139,6 +162,47 @@ public class Main {
         System.out.println("Lägsta pris:  %6.2f öre/kWh  kl %02d:00".formatted(lagsta * 100, billigastTimme));
         System.out.println("Högsta pris:  %6.2f öre/kWh  kl %02d:00".formatted(hogsta * 100, dyrastTimme));
         System.out.println("Medelpris:    %6.2f öre/kWh".formatted(medel * 100));
+    }
+
+    private static void visaSorterat(double[] timpriser) {
+        Timpris[] lista = new Timpris[timpriser.length];
+
+        for (int t = 0; t < timpriser.length; t++) {
+            lista[t] = new Timpris(t, timpriser[t] * 100);
+        }
+
+        Arrays.sort(lista, (a, b) -> Double.compare(a.ore(), b.ore()));
+
+        System.out.println("Timmar sorterade billigast till dyrast:");
+        for (Timpris tp : lista) {
+            System.out.println("kl %02d:00  %6.2f öre/kWh".formatted(tp.timme(), tp.ore()));
+        }
+    }
+
+    private static void visaBastaLaddningstid(double[] timpriser) {
+        int fonster = 4;
+        double basta = Double.MAX_VALUE;
+        int bastaStart = 0;
+
+        for (int start = 0; start <= timpriser.length - fonster; start++) {
+            double summa = 0;
+
+            for (int i = 0; i < fonster; i++) {
+                summa = summa + timpriser[start + i];
+            }
+
+            double medel = summa / fonster;
+
+            if (medel < basta) {
+                basta = medel;
+                bastaStart = start;
+            }
+        }
+
+        int slut = (bastaStart + fonster) % 24;
+
+        System.out.println("Bästa laddningstid: kl %02d:00 – %02d:00".formatted(bastaStart, slut));
+        System.out.println("Snittpris:          %6.2f öre/kWh".formatted(basta * 100));
     }
 
 }
